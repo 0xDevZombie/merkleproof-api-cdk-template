@@ -1,19 +1,28 @@
 from aws_cdk import (
-    # Duration,
+    Duration,
     Stack,
-    # aws_sqs as sqs,
+    aws_lambda as _lambda,
+    aws_apigateway as apigw,
 )
 from constructs import Construct
+
 
 class MerkleproofApiCdkTemplateStack(Stack):
 
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # The code that defines your stack goes here
+        lambda_layer = _lambda.LayerVersion(self, 'nodejs',
+                                            code=_lambda.AssetCode('lambda/layer/'),
+                                            compatible_runtimes=[_lambda.Runtime.NODEJS_16_X],
+                                            )
 
-        # example resource
-        # queue = sqs.Queue(
-        #     self, "MerkleproofApiCdkTemplateQueue",
-        #     visibility_timeout=Duration.seconds(300),
-        # )
+        entry_lambda = _lambda.Function(
+            self, 'merkle-api',
+            handler='merkle-proof-api.handler',
+            code=_lambda.Code.from_asset('lambda/code'),
+            runtime=_lambda.Runtime.NODEJS_16_X,
+            layers=[lambda_layer],
+            timeout=Duration.seconds(3),
+        )
+        apigw.LambdaRestApi(self, 'EndPoint', handler=entry_lambda)
